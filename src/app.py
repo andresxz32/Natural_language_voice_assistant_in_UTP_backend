@@ -1,4 +1,6 @@
 from flask import Flask, request
+from flask_cors import CORS
+
 from pymongo import MongoClient
 from uuid import uuid4
 
@@ -17,8 +19,7 @@ nltk.download('punkt')
 
 
 app = Flask(__name__)
-# app.config['MONGO_URI']="mongodb+srv://andresxz32:oDQDa67GxmnBDJdj1dv13pUz7L3oyPSBi@cluster0.38tw3.mongodb.net/neuralNetwork"
-# mongo = PyMongo(app)
+CORS(app)
 
 # use the 'standard' representation for cross-language compatibility.
 client = MongoClient(
