@@ -151,13 +151,12 @@ def call_neural_network():
         "Context":context,
         "Message":result[0]["responses"][indexRes]
         }
-    else:
-        return {
-        "Tag":idIntent,
-        "Acurracy Score":acurracyScore,
-        "Context":context,
-        "Message":"No se pudo encontrar una respuesta"
-        }
+    return {
+    "Tag":idIntent,
+    "Acurracy Score":acurracyScore,
+    "Context":context,
+    "Message":"No se pudo encontrar una respuesta"
+    }
 
 
 def classify_local(sentence):
