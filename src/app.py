@@ -1,4 +1,5 @@
-from flask import Flask, request
+import os
+from flask import Flask, request,Response
 from flask_cors import CORS
 
 from pymongo import MongoClient
@@ -14,6 +15,23 @@ from keras.layers import Dense, Dropout
 from tensorflow.keras.optimizers import SGD
 import pandas as pd
 import random
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="/home/pipe-dev/dev/UTP/neuronal_network_api_flask/keys.json"
+import google.cloud.texttospeech as tts
+
+SelectionParams = {
+    'language_code':"es-US", 
+    'name':"es-US-Neural2-C"
+}
+
+AudioConfig = {
+    'effects_profile_id': ["telephony-class-application"],
+    'audio_encoding':tts.AudioEncoding.LINEAR16,
+    'pitch':-0.4,
+    'speaking_rate': 1.20
+}
+
+
 
 nltk.download('punkt')
 
@@ -115,17 +133,16 @@ def create_intent():
     patterns = request.json["patterns"]
     responses = request.json["responses"]
     context = request.json["context"]
-    uuid_obj = uuid4()
-    print(uuid_obj)
     id = collection.insert_one(
-        {
-            "_id": str(uuid_obj),
-            "patterns": patterns,
-            "responses": responses,
-            "context": context,
-        }
+         {
+             "_id": str(uuid_obj),
+             "patterns": patterns,
+             "responses": responses,
+             "context": context,
+         }
     )
     return {"message": "OK"}
+
 
 
 @app.route("/call_neural_network", methods=["POST"])
@@ -143,20 +160,17 @@ def call_neural_network():
     print(context)
     print(indexRes)
     print(result[0]["responses"][indexRes])
+    
+    message = result[0]["responses"][indexRes] if float(acurracyScore) > 0.9 else "Lo siento no te entiendo,¿Puedes ser un poco más claro?"
+    audio = text_to_wav(message)
+    return Response(audio, mimetype="audio/x-wav")
 
-    if(float(acurracyScore) > 0.9):
-        return {
-        "Tag":idIntent,
-        "Acurracy Score":acurracyScore,
-        "Context":context,
-        "Message":result[0]["responses"][indexRes]
-        }
-    return {
-    "Tag":idIntent,
-    "Acurracy Score":acurracyScore,
-    "Context":context,
-    "Message":"No se pudo encontrar una respuesta"
-    }
+def generate(route):
+    with open(route, "rb") as fwav:
+        data = fwav.read(1024)
+        while data:
+            yield data
+            data = fwav.read(1024)
 
 
 def classify_local(sentence):
@@ -185,9 +199,6 @@ def clean_up_sentence(sentence):
     return sentence_words
 
 
-# return bag of words array: 0 or 1 for each word in the bag that exists in the sentence
-
-
 def bow(sentence, words, show_details=True):
     # tokenize the pattern
     sentence_words = clean_up_sentence(sentence)
@@ -202,7 +213,16 @@ def bow(sentence, words, show_details=True):
                     print("found in bag: %s" % w)
     return np.array(bag)
 
+def text_to_wav(text: str):
+    text_input = tts.SynthesisInput(text=text)
+    voice_params = tts.VoiceSelectionParams(SelectionParams)
+    audio_config = tts.AudioConfig(AudioConfig)
 
+    client = tts.TextToSpeechClient()
+    response = client.synthesize_speech(
+        input=text_input, voice=voice_params, audio_config=audio_config
+    )
+    return response.audio_content
 
 if __name__ == "__main__":
     app.run(debug=True)
